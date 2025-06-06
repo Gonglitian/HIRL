@@ -1,0 +1,21 @@
+# PushT轨迹回放配置
+# 用于replay_trajectories.py脚本
+
+# 数据文件路径
+data_path: "data/pusht_trajectories/pusht_human_demo.pickle"
+
+# 回放模式
+auto_play: true           # 自动播放或手动逐步播放
+manual_play: false        # 手动逐步播放模式（覆盖auto_play）
+delay: 0.05               # 自动播放时的步间延迟（秒）
+inter_episode_delay: 2.0  # 轨迹间间隔时间（秒）
+episode_id: null         # 指定回放的轨迹ID，null表示回放所有
+
+# 环境配置
+env:
+  obs_type: "state"       # 观测类型
+  render_mode: "human"    # 渲染模式
+
+# 显示配置
+show_info: true          # 是否显示轨迹信息
+show_initial_state: true # 是否显示初始状态 

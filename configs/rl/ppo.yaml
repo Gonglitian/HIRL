@@ -1,0 +1,72 @@
+# PPO训练配置
+# 用于RL/train_ppo.py
+
+# 实验配置
+experiment:
+  name: "PPO_PushT_PixelsAgentPos"
+  project: "pusht-rl"
+  tags: ["ppo", "pusht", "pixels_agent_pos"]
+  notes: "PPO训练PushT环境，使用像素+智能体位置观测"
+
+# 环境配置
+env:
+  name: "gym_pusht/PushT-v0"
+  obs_type: "pixels_agent_pos"  # 像素+智能体位置观测
+  render_mode: "rgb_array"
+  max_episode_steps: 300
+  n_envs: 4  # 并行环境数量
+
+# PPO算法配置
+ppo:
+  # 学习参数
+  learning_rate: 3.0e-4
+  lr_schedule: "linear"  # 学习率调度: constant, linear
+  
+  # 网络架构
+  policy: "MultiInputPolicy"  # 支持多输入(像素+向量)
+  n_steps: 2048  # 每次更新收集的步数
+  batch_size: 64
+  n_epochs: 10
+  
+  # PPO特定参数
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  clip_range_vf: null
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  
+  # 网络架构
+  policy_kwargs:
+    net_arch:
+      pi: [256, 256]  # policy网络
+      vf: [256, 256]  # value网络
+    activation_fn: "tanh"
+
+# 训练配置
+training:
+  total_timesteps: 200000
+  eval_freq: 10000
+  n_eval_episodes: 5
+  save_freq: 20000
+  
+# 回调配置
+callbacks:
+  checkpoint: true
+  tensorboard: false
+  eval: true
+  wandb: true
+
+# WandB配置
+wandb:
+  enabled: true
+  mode: "online"  # online, offline, disabled
+  save_code: true
+  log_freq: 1000
+
+# 保存配置
+save:
+  model_dir: "models/ppo"
+  log_dir: "logs/ppo"
+  best_model_save: true 

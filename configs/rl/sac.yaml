@@ -1,0 +1,74 @@
+# SAC训练配置
+# 用于RL/train_sac.py
+
+# 实验配置
+experiment:
+  name: "SAC_PushT_PixelsAgentPos"
+  project: "pusht-rl"
+  tags: ["sac", "pusht", "pixels_agent_pos"]
+  notes: "SAC训练PushT环境，使用像素+智能体位置观测"
+
+# 环境配置
+env:
+  name: "gym_pusht/PushT-v0"
+  obs_type: "pixels_agent_pos"  # 像素+智能体位置观测
+  render_mode: "rgb_array"
+  max_episode_steps: 300
+  n_envs: 1  # SAC通常使用单环境
+
+# SAC算法配置
+sac:
+  # 学习参数
+  learning_rate: 3.0e-4
+  lr_schedule: "constant"  # 学习率调度: constant, linear
+  
+  # 网络架构
+  policy: "MultiInputPolicy"  # 支持多输入(像素+向量)
+  buffer_size: 50000  # 减小缓冲区大小以节省内存
+  learning_starts: 5000  # 减小学习开始步数
+  batch_size: 256
+  
+  # SAC特定参数
+  gamma: 0.99
+  tau: 0.005
+  ent_coef: "auto"  # 自动调整熵系数
+  target_update_interval: 1
+  target_entropy: "auto"
+  
+  # 网络架构
+  policy_kwargs:
+    net_arch: [256, 256]
+    activation_fn: "relu"
+  
+  # 训练频率
+  train_freq:
+    freq: 1
+    unit: "step"
+  gradient_steps: 1
+
+# 训练配置
+training:
+  total_timesteps: 200000
+  eval_freq: 10000
+  n_eval_episodes: 5
+  save_freq: 20000
+
+# 回调配置
+callbacks:
+  checkpoint: true
+  tensorboard: false
+  eval: true
+  wandb: true
+
+# WandB配置
+wandb:
+  enabled: true
+  mode: "online"  # online, offline, disabled
+  save_code: true
+  log_freq: 1000
+
+# 保存配置
+save:
+  model_dir: "models/sac"
+  log_dir: "logs/sac"
+  best_model_save: true 
