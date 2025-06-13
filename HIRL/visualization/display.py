@@ -34,12 +34,13 @@ class GameDisplay:
         
         logging.info(f"游戏显示初始化完成，窗口大小: {window_size}x{window_size}")
     
-    def render_pixels(self, pixels: np.ndarray):
+    def render_pixels(self, pixels: np.ndarray, update_display: bool = True):
         """
         渲染像素图像
         
         Args:
             pixels: 像素数组 (H, W, 3)
+            update_display: 是否立即更新显示
         """
         if len(pixels.shape) == 3 and pixels.shape[2] == 3:
             # 确保像素值在正确范围内
@@ -62,10 +63,11 @@ class GameDisplay:
             self._draw_text("Invalid pixel data", self.window_size // 2, self.window_size // 2, 
                           color=(255, 255, 255), center=True)
         
-        pygame.display.flip()
+        if update_display:
+            pygame.display.flip()
     
     def render_status(self, step_count: int, episode_reward: float, 
-                     info: Dict[str, Any], control_mode: str):
+                     info: Dict[str, Any], control_mode: str, update_display: bool = True):
         """
         渲染状态信息覆盖层
         
@@ -74,6 +76,7 @@ class GameDisplay:
             episode_reward: 累计奖励
             info: 环境信息
             control_mode: 控制模式
+            update_display: 是否立即更新显示
         """
         # 创建半透明覆盖层
         overlay = pygame.Surface((self.window_size, 100))
@@ -94,7 +97,28 @@ class GameDisplay:
             y_offset += 25
         
         self.screen.blit(overlay, (0, self.window_size - 100))
-        pygame.display.flip()
+        
+        if update_display:
+            pygame.display.flip()
+    
+    def render_game_state(self, pixels: np.ndarray, step_count: int, episode_reward: float, 
+                         info: Dict[str, Any], control_mode: str):
+        """
+        一次性渲染完整的游戏状态（像素+状态信息）
+        避免多次display.flip()调用造成的闪烁
+        
+        Args:
+            pixels: 像素数组 (H, W, 3)
+            step_count: 步数
+            episode_reward: 累计奖励
+            info: 环境信息
+            control_mode: 控制模式
+        """
+        # 先渲染像素数据，但不更新显示
+        self.render_pixels(pixels, update_display=False)
+        
+        # 再渲染状态信息，并一次性更新显示
+        self.render_status(step_count, episode_reward, info, control_mode, update_display=True)
     
     def show_countdown(self, seconds: int):
         """

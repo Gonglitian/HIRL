@@ -173,20 +173,44 @@ class DataManager:
                 
                 # 收集所有步骤的数据
                 observations = []
+                agent_positions = []
+                pixels_data = []
                 actions = []
                 rewards = []
                 terminated = []
                 truncated = []
                 is_human_action = []
+                has_pixels = False
+                has_agent_pos = False
                 
                 for step in episode.steps:
-                    # 处理观测
-                    if isinstance(step.observation, dict) and 'agent_pos' in step.observation:
-                        observations.append(step.observation['agent_pos'])
+                    # 处理观测数据
+                    if isinstance(step.observation, dict):
+                        # 检查是否有agent_pos
+                        if 'agent_pos' in step.observation:
+                            agent_positions.append(step.observation['agent_pos'])
+                            has_agent_pos = True
+                        else:
+                            agent_positions.append([0, 0])  # 默认值
+                            
+                        # 检查是否有pixels
+                        if 'pixels' in step.observation:
+                            pixels_data.append(step.observation['pixels'])
+                            has_pixels = True
+                        else:
+                            # 如果没有pixels，记录空数组
+                            pixels_data.append(np.zeros((1,), dtype=np.uint8))
+                            
+                        # 完整的观测数据（用于向后兼容）
+                        observations.append(step.observation['agent_pos'] if 'agent_pos' in step.observation else [0, 0])
                     elif isinstance(step.observation, np.ndarray):
                         observations.append(step.observation.flatten())
+                        agent_positions.append([0, 0])  # 默认值
+                        pixels_data.append(np.zeros((1,), dtype=np.uint8))
                     else:
                         observations.append([0, 0])  # 默认值
+                        agent_positions.append([0, 0])
+                        pixels_data.append(np.zeros((1,), dtype=np.uint8))
                     
                     actions.append(step.action)
                     rewards.append(step.reward)
@@ -201,6 +225,25 @@ class DataManager:
                 steps_group.create_dataset('terminated', data=np.array(terminated))
                 steps_group.create_dataset('truncated', data=np.array(truncated))
                 steps_group.create_dataset('is_human_action', data=np.array(is_human_action))
+                
+                # 如果有agent_pos数据，单独保存
+                if has_agent_pos:
+                    steps_group.create_dataset('agent_positions', data=np.array(agent_positions))
+                
+                # 如果有pixels数据，单独保存
+                if has_pixels:
+                    # 创建像素数据组
+                    pixels_group = steps_group.create_group('pixels')
+                    for idx, pixels in enumerate(pixels_data):
+                        if isinstance(pixels, np.ndarray) and pixels.size > 1:
+                            pixels_group.create_dataset(f'step_{idx}', data=pixels, compression='gzip')
+                    
+                    # 保存像素数据的元信息
+                    if len(pixels_data) > 0 and isinstance(pixels_data[0], np.ndarray) and pixels_data[0].size > 1:
+                        first_valid_pixels = next((p for p in pixels_data if isinstance(p, np.ndarray) and p.size > 1), None)
+                        if first_valid_pixels is not None:
+                            pixels_group.attrs['shape'] = first_valid_pixels.shape
+                            pixels_group.attrs['dtype'] = str(first_valid_pixels.dtype)
 
     def _save_to_csv(self, file_path: Path):
         """保存到CSV格式（最通用的纯数据格式）"""
@@ -291,21 +334,56 @@ class DataManager:
                     steps_data = []
                     if 'steps' in ep_group:
                         steps_group = ep_group['steps']
-                        observations = np.array(steps_group['observations'])
-                        actions = np.array(steps_group['actions'])
-                        rewards = np.array(steps_group['rewards'])
-                        terminated = np.array(steps_group['terminated'])
-                        truncated = np.array(steps_group['truncated'])
-                        is_human_action = np.array(steps_group['is_human_action'])
                         
-                        for i in range(len(observations)):
+                        # 加载基本数据
+                        observations = np.array(steps_group['observations']) if 'observations' in steps_group else None
+                        actions = np.array(steps_group['actions']) if 'actions' in steps_group else None
+                        rewards = np.array(steps_group['rewards']) if 'rewards' in steps_group else None
+                        terminated = np.array(steps_group['terminated']) if 'terminated' in steps_group else None
+                        truncated = np.array(steps_group['truncated']) if 'truncated' in steps_group else None
+                        is_human_action = np.array(steps_group['is_human_action']) if 'is_human_action' in steps_group else None
+                        
+                        # 加载agent_positions（如果存在）
+                        agent_positions = np.array(steps_group['agent_positions']) if 'agent_positions' in steps_group else None
+                        
+                        # 加载pixels数据（如果存在）
+                        pixels_data = []
+                        if 'pixels' in steps_group:
+                            pixels_group = steps_group['pixels']
+                            num_steps = len(observations) if observations is not None else 0
+                            
+                            for i in range(num_steps):
+                                step_key = f'step_{i}'
+                                if step_key in pixels_group:
+                                    pixels_data.append(np.array(pixels_group[step_key]))
+                                else:
+                                    pixels_data.append(None)
+                        
+                        # 组装步骤数据
+                        num_steps = len(observations) if observations is not None else 0
+                        for i in range(num_steps):
+                            # 构建观测数据
+                            obs_data = {}
+                            
+                            # 添加agent_pos（如果存在）
+                            if agent_positions is not None and i < len(agent_positions):
+                                obs_data['agent_pos'] = agent_positions[i].tolist()
+                            
+                            # 添加pixels（如果存在）
+                            if pixels_data and i < len(pixels_data) and pixels_data[i] is not None:
+                                obs_data['pixels'] = pixels_data[i]
+                            
+                            # 如果没有结构化数据，使用原始observations
+                            if not obs_data and observations is not None:
+                                obs_data = observations[i].tolist()
+                            
                             step_data = {
-                                'observation': observations[i].tolist(),
-                                'action': actions[i].tolist(),
-                                'reward': float(rewards[i]),
-                                'terminated': bool(terminated[i]),
-                                'truncated': bool(truncated[i]),
-                                'is_human_action': bool(is_human_action[i])
+                                'observation': obs_data,
+                                'action': actions[i].tolist() if actions is not None else [],
+                                'reward': float(rewards[i]) if rewards is not None else 0.0,
+                                'terminated': bool(terminated[i]) if terminated is not None else False,
+                                'truncated': bool(truncated[i]) if truncated is not None else False,
+                                'is_human_action': bool(is_human_action[i]) if is_human_action is not None else False
                             }
                             steps_data.append(step_data)
                     

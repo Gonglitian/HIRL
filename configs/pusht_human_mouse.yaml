@@ -14,7 +14,7 @@ env:
 control:
   fps: 10                        # 渲染帧率
   user_control: true              # 初始是否用户控制
-  countdown_duration: 2           # 开始/重置时的倒计时时长(秒)
+  countdown_duration: 1           # 开始/重置时的倒计时时长(秒)
   
   # 控制模式选择 (只能选择一种)
   input_mode: "mouse"             # 输入模式: "keyboard" | "mouse"

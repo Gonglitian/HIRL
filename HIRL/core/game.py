@@ -136,8 +136,10 @@ class PushTGame:
             
         except KeyboardInterrupt:
             logging.info("用户中断游戏")
+            self._save_current_data()
         except Exception as e:
             logging.error(f"游戏运行出错: {e}")
+            self._save_current_data()
             raise
         finally:
             self._cleanup()
@@ -150,11 +152,17 @@ class PushTGame:
         self.current_obs, self.current_info = self.environment.reset()
         self.current_trajectory = []
         
-        # 渲染初始状态
-        self._render_current_state()
-        
         # 获取初始状态信息
         initial_state = self.environment.get_initial_state_info(self.current_info)
+        
+        # 初始化状态变量
+        episode_reward = 0.0
+        step_count = 0
+        
+        # 渲染初始状态（包含状态信息）
+        control_mode = "Human Control" if self.user_control else "AI Control"
+        pixels = self._get_current_pixels()
+        self.display.render_game_state(pixels, step_count, episode_reward, self.current_info, control_mode)
         
         # 用户准备阶段
         if self.user_control and not self._countdown_start(self.cfg.control.countdown_duration):
@@ -162,24 +170,33 @@ class PushTGame:
             return
         
         # 游戏主循环
-        episode_reward = 0.0
-        step_count = 0
         
         while True:
             # 处理输入并获取动作
             action = self._get_action()
             
             if action is None:  # 退出信号
+                logging.info("用户请求退出游戏")
+                # 保存当前轨迹（如果有的话）
+                if self.current_trajectory:
+                    episode = Episode(
+                        steps=self.current_trajectory,
+                        episode_id=self.current_episode,
+                        total_reward=episode_reward,
+                        success=False,  # 提前退出视为未成功
+                        length=step_count,
+                        initial_state=initial_state
+                    )
+                    self.data_manager.add_episode(episode)
                 self.running = False
                 break
             
             # 执行动作
             obs, reward, terminated, truncated, info = self.environment.step(action)
             
-            # 渲染新状态
+            # 更新当前状态
             self.current_obs = obs
             self.current_info = info
-            self._render_current_state()
             
             # 记录轨迹
             step = TrajectoryStep(
@@ -196,9 +213,10 @@ class PushTGame:
             episode_reward += reward
             step_count += 1
             
-            # 显示状态信息
+            # 一次性渲染完整的游戏状态（避免闪烁）
             control_mode = "Human Control" if self.user_control else "AI Control"
-            self.display.render_status(step_count, episode_reward, info, control_mode)
+            pixels = self._get_current_pixels()
+            self.display.render_game_state(pixels, step_count, episode_reward, info, control_mode)
             
             # 检查游戏结束条件
             max_steps_reached = step_count >= self.cfg.env.max_episode_steps
@@ -242,6 +260,7 @@ class PushTGame:
         # 检查重置
         if special_actions.get('reset'):
             self.current_obs, self.current_info = self.environment.reset()
+            # 重置后只渲染像素，不渲染状态信息（会在主循环中更新）
             self._render_current_state()
             logging.info("环境已重置")
         
@@ -265,14 +284,18 @@ class PushTGame:
             # AI控制
             return self.ai_policy.get_action(self.current_obs)
     
-    def _render_current_state(self):
-        """渲染当前状态"""
+    def _get_current_pixels(self) -> np.ndarray:
+        """获取当前状态的像素数据"""
         if isinstance(self.current_obs, dict) and 'pixels' in self.current_obs:
-            self.display.render_pixels(self.current_obs['pixels'])
+            return self.current_obs['pixels']
         else:
-            # 如果没有像素数据，显示黑屏
-            pixels = np.zeros((512, 512, 3), dtype=np.uint8)
-            self.display.render_pixels(pixels)
+            # 如果没有像素数据，返回黑屏
+            return np.zeros((512, 512, 3), dtype=np.uint8)
+    
+    def _render_current_state(self):
+        """渲染当前状态（仅像素数据）"""
+        pixels = self._get_current_pixels()
+        self.display.render_pixels(pixels)
     
     def _countdown_start(self, duration: int = 3) -> bool:
         """开始倒计时"""
@@ -291,16 +314,18 @@ class PushTGame:
         time.sleep(0.5)
         return True
     
-    def _finish_game(self):
-        """游戏结束处理"""
-        logging.info("游戏结束")
-        
-        # 保存数据
-        if self.data_manager.episodes:
+    def _save_current_data(self):
+        """保存当前已收集的数据"""
+        if not self.data_manager.episodes:
+            logging.info("没有数据需要保存")
+            return None
+            
+        try:
             saved_path = self.data_manager.save_data(self.cfg.data.dataset_name)
             
             # 显示统计信息
             stats = self.data_manager.get_statistics()
+            logging.info(f"数据已保存: {saved_path}")
             logging.info(f"游戏统计:")
             logging.info(f"  总轮数: {stats['total_episodes']}")
             logging.info(f"  成功率: {stats['success_rate']:.3f}")
@@ -318,7 +343,17 @@ class PushTGame:
                     logging.info(f"数据已上传到: {url}")
                 except Exception as e:
                     logging.error(f"上传失败: {e}")
-        
+            
+            return saved_path
+            
+        except Exception as e:
+            logging.error(f"保存数据失败: {e}")
+            return None
+
+    def _finish_game(self):
+        """游戏结束处理"""
+        logging.info("游戏结束")
+        self._save_current_data()
         self.display.show_message("Game Over, Thanks for Playing!", duration_ms=3000)
     
     def _cleanup(self):
