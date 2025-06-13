@@ -13,7 +13,7 @@ import sys
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.data.data_manager import DataManager
+from HIRL.data.data_manager import DataManager
 
 
 def convert_data(input_file: str, output_format: str, output_dir: str = None):

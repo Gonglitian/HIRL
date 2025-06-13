@@ -33,7 +33,8 @@ class PushTGame:
         self.environment = PushTEnvironment(
             obs_type=cfg.env.obs_type,
             observation_width=512,
-            observation_height=512
+            observation_height=512,
+            max_episode_steps=cfg.env.max_episode_steps
         )
         
         # 初始化控制器
@@ -47,7 +48,7 @@ class PushTGame:
         self.uploader = HuggingFaceUploader(cfg.upload.hf_token)
         
         # 初始化策略
-        self.random_policy = RandomPolicy(self.environment.action_space, cfg.policy.random_seed)
+        self._setup_policy(cfg.policy)
         
         # 游戏状态
         self.user_control = cfg.control.user_control
@@ -97,6 +98,18 @@ class PushTGame:
         }
         self.special_controller = KeyboardController(special_keys, 0)
     
+    def _setup_policy(self, policy_cfg):
+        """设置AI策略"""
+        if policy_cfg.type == "random":
+            self.ai_policy = RandomPolicy(self.environment.action_space, policy_cfg.random_seed)
+            logging.info(f"使用随机策略，种子: {policy_cfg.random_seed}")
+        elif policy_cfg.type == "trained":
+            # 未来可以在这里加载训练好的模型
+            logging.warning("训练策略暂未实现，使用随机策略")
+            self.ai_policy = RandomPolicy(self.environment.action_space, policy_cfg.random_seed)
+        else:
+            raise ValueError(f"不支持的策略类型: {policy_cfg.type}")
+    
     def _log_controls(self):
         """输出控制说明"""
         logging.info("=" * 50)
@@ -144,7 +157,7 @@ class PushTGame:
         initial_state = self.environment.get_initial_state_info(self.current_info)
         
         # 用户准备阶段
-        if self.user_control and not self._countdown_start():
+        if self.user_control and not self._countdown_start(self.cfg.control.countdown_duration):
             self.running = False
             return
         
@@ -188,10 +201,17 @@ class PushTGame:
             self.display.render_status(step_count, episode_reward, info, control_mode)
             
             # 检查游戏结束条件
-            if terminated or truncated:
-                success = info.get('is_success', False)
+            max_steps_reached = step_count >= self.cfg.env.max_episode_steps
+            if terminated or truncated or max_steps_reached:
+                # 检查成功条件
+                coverage = info.get('coverage', 0.0)
+                success = info.get('is_success', False) or coverage >= self.cfg.env.success_threshold
+                
+                if max_steps_reached:
+                    logging.info(f"第{self.current_episode + 1}轮达到最大步数限制({self.cfg.env.max_episode_steps})")
+                
                 logging.info(f"第{self.current_episode + 1}轮结束，步数: {step_count}，"
-                           f"奖励: {episode_reward:.3f}，成功: {success}")
+                           f"奖励: {episode_reward:.3f}，覆盖率: {coverage:.3f}，成功: {success}")
                 
                 # 保存轨迹
                 episode = Episode(
@@ -243,7 +263,7 @@ class PushTGame:
                 return self.controller.get_mouse_action()
         else:
             # AI控制
-            return self.random_policy.get_action(self.current_obs)
+            return self.ai_policy.get_action(self.current_obs)
     
     def _render_current_state(self):
         """渲染当前状态"""
@@ -277,7 +297,7 @@ class PushTGame:
         
         # 保存数据
         if self.data_manager.episodes:
-            saved_path = self.data_manager.save_data()
+            saved_path = self.data_manager.save_data(self.cfg.data.dataset_name)
             
             # 显示统计信息
             stats = self.data_manager.get_statistics()

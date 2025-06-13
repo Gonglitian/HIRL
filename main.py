@@ -10,12 +10,8 @@ import logging
 import hydra
 from omegaconf import DictConfig
 
-# 设置模块搜索路径
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from src.core import PushTGame
+# 导入HIRL包
+from HIRL.core import PushTGame
 
 
 def setup_logging(level: str = "INFO"):
@@ -29,7 +25,7 @@ def setup_logging(level: str = "INFO"):
 
 def manual_upload_dataset(cfg: DictConfig):
     """手动上传数据集"""
-    from src.data import HuggingFaceUploader
+    from HIRL.data import HuggingFaceUploader
     
     uploader = HuggingFaceUploader(cfg.upload.hf_token)
     

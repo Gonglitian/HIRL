@@ -2,11 +2,15 @@
 # =====================================
 
 # Data directories
-data/
+**/data/
+!HIRL/data/
+!HIRL/data/**
+
 pusht_trajectories/
 *.pkl
 *.pickle
 *.npz
+
 
 # Model directories and files
 models/

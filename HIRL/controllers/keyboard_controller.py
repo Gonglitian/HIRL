@@ -81,8 +81,9 @@ class KeyboardController:
         
         dx, dy = 0, 0
         
-        # 检查移动键 (WASD)
-        if keys[pygame.K_w]:  # 上
+        # 检查移动键
+        # 简化实现：检查配置文件中的标准按键
+        if keys[pygame.K_w]:  # 上 (默认配置)
             dy -= self.move_speed
         if keys[pygame.K_s]:  # 下  
             dy += self.move_speed

@@ -14,11 +14,8 @@ import hydra
 from omegaconf import DictConfig
 from pathlib import Path
 
-# 设置模块搜索路径
-import sys
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from src.visualization.replay import TrajectoryReplayer
+# 导入HIRL包
+from HIRL.visualization.replay import TrajectoryReplayer
 
 
 def setup_logging(level: str = "INFO"):
@@ -72,6 +69,12 @@ def main(cfg: DictConfig):
                 success_str = "成功" if episode.success else "失败"
                 logging.info(f"轨迹 {i}: ID={episode.episode_id}, 步数={episode.length}, "
                            f"奖励={episode.total_reward:.3f}, {success_str}")
+                
+                # 显示初始状态信息
+                if cfg.get('show_initial_state', False) and hasattr(episode, 'initial_state') and episode.initial_state:
+                    logging.info(f"  初始状态 - Agent: {episode.initial_state.get('agent_pos', 'N/A')}, "
+                               f"Block: {episode.initial_state.get('block_pos', 'N/A')}, "
+                               f"Angle: {episode.initial_state.get('block_angle', 'N/A'):.3f}")
         
         # 回放轨迹
         if cfg.get('episode_id') is not None:
