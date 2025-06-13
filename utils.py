@@ -24,6 +24,7 @@ class TrajectoryStep:
     terminated: bool
     truncated: bool
     info: Dict[str, Any]
+    is_human_action: bool = False  # 标记是否为人类控制的动作
 
 @dataclass 
 class Episode:
@@ -389,10 +390,24 @@ class PushTReplayEnv:
             render_mode: 渲染模式
         """
         self.base_env = base_env
+        # 获取实际的PushT环境（去除TimeLimit等包装器）
+        self.actual_env = self._get_actual_env(base_env)
         self.render_mode = render_mode
         self.current_episode = None
         self.current_step = 0
         self.replay_finished = False
+        
+    def _get_actual_env(self, env):
+        """获取实际的PushT环境，去除包装器"""
+        # 如果有unwrapped属性，直接返回
+        if hasattr(env, 'unwrapped'):
+            return env.unwrapped
+        # 如果有env属性，递归查找
+        elif hasattr(env, 'env'):
+            return self._get_actual_env(env.env)
+        # 否则返回原环境
+        else:
+            return env
         
     def reset_to_episode(self, episode: Episode):
         """重置环境到指定轨迹的初始状态"""
@@ -414,8 +429,8 @@ class PushTReplayEnv:
         )
         
         # 获取设置后的观测和信息
-        obs = self.base_env.get_obs()
-        # info = self.base_env._get_info()A
+        obs = self.actual_env.get_obs()
+        # info = self.actual_env._get_info()
         
         logging.info(f"回放环境已重置到轨迹{episode.episode_id}的初始状态")
         logging.info(f"  Agent位置: {initial_state['agent_pos']}")
@@ -427,21 +442,24 @@ class PushTReplayEnv:
     
     def _set_state_without_physics_step(self, agent_pos, block_pos, block_angle):
         """直接设置状态，不运行物理步进"""
+        # 使用实际的环境来设置状态
+        actual_env = self.actual_env
+        
         # 直接设置agent位置
-        self.base_env.agent.position = agent_pos
+        actual_env.agent.position = agent_pos
         
         # 对于block，需要先设置角度再设置位置
         # 因为设置角度会相对于重心旋转，可能改变几何位置
-        self.base_env.block.angle = block_angle
-        self.base_env.block.position = block_pos
+        actual_env.block.angle = block_angle
+        actual_env.block.position = block_pos
         
         # 重置速度，避免之前的动量影响
-        self.base_env.agent.velocity = (0, 0)
-        self.base_env.block.velocity = (0, 0)
-        self.base_env.block.angular_velocity = 0
+        actual_env.agent.velocity = (0, 0)
+        actual_env.block.velocity = (0, 0)
+        actual_env.block.angular_velocity = 0
         
         # 重置碰撞计数
-        self.base_env.n_contact_points = 0
+        actual_env.n_contact_points = 0
     
     def step_replay(self):
         """执行回放的下一步"""

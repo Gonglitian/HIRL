@@ -4,7 +4,7 @@
 # │                          🎮 游戏环境配置                              │
 # └─────────────────────────────────────────────────────────────────────────┘
 env:
-  obs_type: "state"               # 观测类型: state|pixels|environment_state_agent_pos|pixels_agent_pos
+  obs_type: "pixels_agent_pos"               # 观测类型: state|pixels|environment_state_agent_pos|pixels_agent_pos
   max_episode_steps: 150          # 每轮最大步数
   success_threshold: 0.95         # 成功覆盖率阈值
 

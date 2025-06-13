@@ -23,11 +23,13 @@ class PushTHuman:
     def __init__(self, cfg: DictConfig):
         self.cfg = cfg
         
-        # 初始化环境
+        # 初始化环境 - 使用更高分辨率的观测
         self.env = gym.make(
             "gym_pusht/PushT-v0", 
             obs_type=cfg.env.obs_type,
-            render_mode="human"
+            render_mode="rgb_array",
+            observation_width=512,   # 提高观测分辨率到512x512
+            observation_height=512   # 与物理坐标系一致
         )
         
         # 初始化控制器
@@ -85,6 +87,14 @@ class PushTHuman:
         self.clock = pygame.time.Clock()
         self.fps = cfg.control.fps
         
+        # 初始化pygame显示
+        pygame.init()
+        pygame.display.init()
+        # 设置显示窗口大小 - 使用较大的尺寸以便观看
+        self.window_size = 512  # 显示窗口大小
+        self.screen = pygame.display.set_mode((self.window_size, self.window_size))
+        pygame.display.set_caption("PushT Human - 初始化中...")
+        
         # 当前轨迹
         self.current_trajectory: List[TrajectoryStep] = []
         self.current_obs = None
@@ -129,6 +139,13 @@ class PushTHuman:
         self.current_obs, self.current_info = self.env.reset()
         self.current_trajectory = []
         
+        # 渲染初始状态
+        if isinstance(self.current_obs, dict) and 'pixels' in self.current_obs:
+            self.render_pixels(self.current_obs['pixels'])
+        else:
+            self.screen.fill((0, 0, 0))
+            pygame.display.flip()
+        
         # 保存初始状态信息用于轨迹回放
         initial_state = {
             'agent_pos': np.array(self.current_info['pos_agent']).tolist(),
@@ -164,16 +181,23 @@ class PushTHuman:
             
             # 执行动作
             obs, reward, terminated, truncated, info = self.env.step(action)
-            # render
-            self.env.render()
-            # 记录轨迹
+            
+            # 渲染像素图像
+            if isinstance(obs, dict) and 'pixels' in obs:
+                self.render_pixels(obs['pixels'])
+            else:
+                # 如果不是pixels_agent_pos类型，显示黑屏或错误信息
+                self.screen.fill((0, 0, 0))
+                pygame.display.flip()
+            # 记录轨迹 - 记录执行动作后的观测
             step = TrajectoryStep(
-                observation=self.current_obs.copy(),
+                observation=obs.copy() if isinstance(obs, dict) else obs.copy(),
                 action=action.copy(),
                 reward=reward,
                 terminated=terminated,
                 truncated=truncated,
-                info=info.copy()
+                info=info.copy(),
+                is_human_action=self.user_control  # 记录是否为人类控制
             )
             self.current_trajectory.append(step)
             
@@ -229,6 +253,13 @@ class PushTHuman:
             logging.info("重置环境")
             self.current_obs, self.current_info = self.env.reset()
             self.current_trajectory = []
+            
+            # 渲染重置后的状态
+            if isinstance(self.current_obs, dict) and 'pixels' in self.current_obs:
+                self.render_pixels(self.current_obs['pixels'])
+            else:
+                self.screen.fill((0, 0, 0))
+                pygame.display.flip()
             
             # 重置后给用户准备时间
             if self.user_control:
@@ -286,6 +317,30 @@ class PushTHuman:
             # 对于纯像素观测，从info中获取
             return np.array(self.current_info["pos_agent"])
     
+    def render_pixels(self, pixels: np.ndarray):
+        """渲染pixels图像到pygame窗口"""
+        if pixels is not None and len(pixels.shape) == 3:
+            # 检查图像尺寸
+            height, width = pixels.shape[:2]
+            
+            # 转换为pygame surface
+            surface = pygame.surfarray.make_surface(pixels.swapaxes(0, 1))  # pygame需要转置
+            
+            # 如果图像尺寸与窗口尺寸一致，直接显示；否则缩放
+            if width == self.window_size and height == self.window_size:
+                # 直接显示，无需缩放（清晰）
+                self.screen.blit(surface, (0, 0))
+            else:
+                # 需要缩放（适用于96x96等低分辨率）
+                scaled_surface = pygame.transform.scale(surface, (self.window_size, self.window_size))
+                self.screen.blit(scaled_surface, (0, 0))
+            
+            pygame.display.flip()
+        else:
+            # 如果没有pixels数据，显示黑屏
+            self.screen.fill((0, 0, 0))
+            pygame.display.flip()
+
     def display_status(self, step_count: int, episode_reward: float, info: dict):
         """显示状态信息在窗口标题"""
         mode = "用户控制" if self.user_control else "策略控制"
@@ -340,7 +395,12 @@ class PushTHuman:
         
         for i in range(duration, 0, -1):
             # 渲染当前状态，让用户看到agent位置
-            self.env.render()
+            if isinstance(self.current_obs, dict) and 'pixels' in self.current_obs:
+                self.render_pixels(self.current_obs['pixels'])
+            else:
+                # 如果没有pixels数据，显示黑屏
+                self.screen.fill((0, 0, 0))
+                pygame.display.flip()
             
             # 更新窗口标题显示倒计时
             title = f"PushT Human - 倒计时 {i} 秒 - 准备开始"
