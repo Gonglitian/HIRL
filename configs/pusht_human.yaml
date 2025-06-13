@@ -41,7 +41,7 @@ control:
 data:
   num_episodes: 1                 # 游戏轮数 (测试用)
   save_dir: "data/pusht_trajectories"  # 数据保存目录
-  save_format: "pickle"           # 保存格式: pickle|json|npz
+  save_format: "hdf5"             # 保存格式: hdf5|json|csv|npz|pickle (推荐hdf5，纯数据无类依赖)
   dataset_name: "pusht_human_demo"  # 数据集名称
   
 # ┌─────────────────────────────────────────────────────────────────────────┐

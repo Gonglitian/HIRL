@@ -1,257 +1,266 @@
-# PushT Human - 交互式推方块环境
+# HIRL - 人机交互强化学习平台
 
-一个基于gym-pusht的交互式强化学习环境，支持人类键盘控制、策略切换、轨迹记录和数据上传功能。
+<div align="center">
 
-## 🚀 功能特点
+**Human-in-the-Loop Reinforcement Learning Platform**
 
-- **🎮 人机交互**: 支持键盘和鼠标控制智能体移动
-- **🔄 策略切换**: 一键切换用户控制和AI策略控制
-- **📊 轨迹记录**: 自动记录状态、动作、奖励等完整轨迹数据
-- **🎬 轨迹回放**: 支持回放已记录的轨迹，包含初始状态信息
-- **🤖 强化学习训练**: 基于stable_baselines3的PPO和SAC算法训练
-- **📈 实验管理**: 集成WandB进行实验跟踪和可视化
-- **☁️ 数据上传**: 支持将数据上传到Hugging Face Hub
-- **⚙️ 配置管理**: 基于Hydra的灵活配置系统
-- **🎯 多观测模式**: 支持状态向量、像素图像等多种观测类型
+一个模块化、可扩展的人机交互强化学习研究平台
 
-## 📦 安装依赖
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+</div>
+
+## 🌟 项目概览
+
+HIRL是一个专门为人机交互强化学习研究设计的平台，基于PushT环境实现。该平台支持用户通过键盘或鼠标直接控制智能体，收集人类演示数据，并提供完整的轨迹记录、回放和分析功能。
+
+### 核心特性
+
+- **🎮 多模式交互**: 支持键盘和鼠标控制，实时切换用户/AI控制模式
+- **📊 轨迹管理**: 完整的轨迹记录、保存、加载和回放功能
+- **🤖 RL训练**: 集成PPO和SAC算法，支持从人类演示数据学习
+- **📈 数据分析**: 内置数据统计和可视化分析工具
+- **☁️ 云端集成**: 支持数据上传到Hugging Face Hub
+- **⚙️ 配置驱动**: 基于Hydra的灵活配置管理系统
+
+## 🏗️ 架构设计
+
+### 模块结构
+
+```
+HIRL/
+├── src/                          # 核心源代码
+│   ├── core/                     # 核心模块
+│   │   ├── data_types.py         # 数据类型定义
+│   │   ├── environment.py        # 环境管理
+│   │   └── game.py              # 主游戏逻辑
+│   ├── controllers/              # 输入控制器
+│   │   ├── keyboard_controller.py
+│   │   └── mouse_controller.py
+│   ├── data/                     # 数据管理
+│   │   ├── data_manager.py       # 数据保存/加载
+│   │   └── huggingface_uploader.py
+│   ├── visualization/            # 可视化模块
+│   │   ├── display.py           # 游戏显示
+│   │   └── replay.py            # 轨迹回放
+│   └── training/                 # 强化学习训练
+│       ├── train_ppo.py         # PPO训练
+│       └── train_sac.py         # SAC训练
+├── configs/                      # 配置文件
+├── analysis/                     # 数据分析工具
+├── scripts/                      # 实用脚本
+├── demos/                        # 演示文件
+├── main.py                       # 主程序入口
+└── replay.py                     # 轨迹回放工具
+```
+
+### 核心逻辑流程
+
+```mermaid
+graph TD
+    A[启动HIRL] --> B[加载配置]
+    B --> C[初始化环境]
+    C --> D[设置控制器]
+    D --> E[开始游戏循环]
+    
+    E --> F[用户输入]
+    F --> G{控制模式?}
+    G -->|用户控制| H[处理键盘/鼠标输入]
+    G -->|AI控制| I[调用AI策略]
+    
+    H --> J[执行动作]
+    I --> J
+    J --> K[环境步进]
+    K --> L[记录轨迹]
+    L --> M[渲染画面]
+    M --> N{游戏结束?}
+    
+    N -->|否| F
+    N -->|是| O[保存轨迹数据]
+    O --> P[统计分析]
+    P --> Q[可选上传]
+    Q --> R[结束]
+```
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Python 3.8+
+- CUDA (可选，用于GPU加速训练)
+
+### 安装依赖
 
 ```bash
+# 克隆仓库
+git clone <repository-url>
+cd HIRL
+
 # 安装基础依赖
-pip install pygame gymnasium hydra-core omegaconf
-pip install datasets huggingface_hub
-pip install numpy opencv-python
+pip install -r requirements.txt
 
-# 安装强化学习训练依赖
-pip install stable-baselines3[extra] wandb torch
-
-# 安装gym-pusht环境 (可编辑模式)
+# 安装PushT环境
 cd gym-pusht
 pip install -e .
+cd ..
 ```
 
-## 🎮 使用方法
-
-### 基础运行
+### 基础使用
 
 ```bash
-python pusht_human.py
+# 使用默认配置启动（键盘控制）
+python main.py
+
+# 使用命令行参数覆盖配置
+python main.py data.num_episodes=10 control.fps=15
 ```
 
-### 强化学习训练
+### 使用不同的配置文件
 
-#### PPO训练
+HIRL提供了多种预设配置文件，可以通过`--config-name`参数指定：
 
 ```bash
-# 使用默认配置训练PPO
-python RL/train_ppo.py
+# 使用默认键盘控制配置
+python main.py --config-name=pusht_human
 
-# 自定义训练参数
-python RL/train_ppo.py training.total_timesteps=500000
-python RL/train_ppo.py ppo.learning_rate=1e-4
-python RL/train_ppo.py env.n_envs=8
+# 使用鼠标控制配置
+python main.py --config-name=pusht_human_mouse
 
-# 禁用WandB日志
-python RL/train_ppo.py wandb.enabled=false
+# 组合使用：鼠标控制 + 自定义参数
+python main.py --config-name=pusht_human_mouse data.num_episodes=5
 
-# 修改模型保存路径
-python RL/train_ppo.py save.model_dir=models/ppo_experiment1
+# 修改特定配置项
+python main.py --config-name=pusht_human_mouse \
+  control.mouse.smoothing=0.7 \
+  control.mouse.click_to_move=true \
+  data.save_format=json
 ```
 
-#### SAC训练
+### 配置文件详解
+
+#### 🎮 键盘控制配置 (`pusht_human.yaml`)
+- **控制方式**: WASD键盘控制
+- **游戏轮数**: 1轮（测试用）
+- **移动速度**: 10像素/步
+- **数据保存**: `data/pusht_trajectories/`
 
 ```bash
-# 使用默认配置训练SAC
-python RL/train_sac.py
-
-# 自定义训练参数
-python RL/train_sac.py training.total_timesteps=500000
-python RL/train_sac.py sac.learning_rate=1e-4
-python RL/train_sac.py sac.buffer_size=200000
-
-# 调整探索参数
-python RL/train_sac.py sac.ent_coef=0.1
-
-# 修改实验名称
-python RL/train_sac.py experiment.name=SAC_PushT_LargeBuffer
+python main.py --config-name=pusht_human
 ```
 
-#### WandB配置
+#### 🖱️ 鼠标控制配置 (`pusht_human_mouse.yaml`)
+- **控制方式**: 鼠标悬停控制
+- **游戏轮数**: 2轮
+- **平滑系数**: 0.3（较低延迟）
+- **数据保存**: `data/pusht_human_mouse_trajectories/`
 
 ```bash
-# 首次使用需要登录WandB
-wandb login
-
-# 设置项目名称
-python RL/train_ppo.py experiment.project=my-pusht-experiments
-
-# 离线模式运行
-python RL/train_ppo.py wandb.mode=offline
+python main.py --config-name=pusht_human_mouse
 ```
 
-### 自定义配置运行
+### 常用配置组合
 
 ```bash
-# 修改游戏轮数
-python pusht_human.py data.num_episodes=10
+# 快速测试（1轮，键盘控制）
+python main.py data.num_episodes=1
 
-# 修改观测类型
-python pusht_human.py env.obs_type=pixels
+# 数据收集模式（10轮，鼠标控制，JSON格式）
+python main.py --config-name=pusht_human_mouse \
+  data.num_episodes=10 \
+  data.save_format=json
 
-# 修改帧率
-python pusht_human.py control.fps=15
+# 高质量数据收集（慢速，高精度）
+python main.py --config-name=pusht_human_mouse \
+  control.fps=5 \
+  control.mouse.smoothing=0.8 \
+  data.num_episodes=20
 
-# 启用自动上传
-python pusht_human.py upload.auto_upload=true upload.repo_id=your-username/pusht-demo
-```
+# 批量数据生产（快速，多轮）
+python main.py data.num_episodes=50 \
+  control.fps=15 \
+  upload.auto_upload=true \
+  upload.repo_id=your-username/pusht-dataset
 
-### 仅上传已有数据
-
-```bash
-python pusht_human.py upload_only=true upload.repo_id=your-username/pusht-demo
+# 演示模式（鼠标控制，需要点击）
+python main.py --config-name=pusht_human_mouse \
+  control.mouse.click_to_move=true \
+  control.countdown_duration=5
 ```
 
 ### 轨迹回放
 
 ```bash
-# 回放所有轨迹（自动播放）
-python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5episodes.pkl
+# 使用默认回放配置
+python replay.py
 
-# 回放指定轨迹
-python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5episodes.pkl --episode_id=0
+# 指定数据文件路径
+python replay.py data_path=data/pusht_trajectories/trajectories_5episodes.pkl
 
 # 手动逐步回放
-python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5episodes.pkl --manual_play
+python replay.py manual_play=true
 
-# 调整回放速度
-python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5episodes.pkl --delay=0.05
+# 回放指定轨迹
+python replay.py episode_id=0
 
-# 调整轨迹间间隔（默认2秒）
-python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5episodes.pkl --inter_episode_delay=1
+# 调整回放参数
+python replay.py \
+  data_path=your_data_file.pkl \
+  delay=0.05 \
+  inter_episode_delay=1.0 \
+  show_info=true
 
-# 连续回放无间隔
-python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5episodes.pkl --inter_episode_delay=0
-
-# 支持JSON格式
-python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5episodes.json
+# 自动连续回放（无间隔）
+python replay.py auto_play=true inter_episode_delay=0
 ```
 
-#### 回放控制说明
+### 强化学习训练
 
-**自动播放模式**:
-- 轨迹将自动按照原始动作序列执行
-- 多个轨迹会自动连续播放，默认轨迹间间隔2秒
-- 按 `Q` 键可随时退出回放
+```bash
+# 使用默认PPO配置训练
+python src/training/train_ppo.py
 
-**手动播放模式**:
-- 按 `空格` 键执行下一步
-- 按 `Q` 键退出回放
-- 可以仔细观察每一步的执行结果
+# 使用默认SAC配置训练
+python src/training/train_sac.py
 
-**回放参数**:
-- `--delay`: 控制自动播放时每步之间的延迟时间
-- `--inter_episode_delay`: 控制轨迹间的间隔时间（设为0可连续播放）
-- `--episode_id`: 指定回放特定轨迹的ID
+# 指定配置文件（从configs/rl/目录）
+python src/training/train_ppo.py --config-name=ppo
+python src/training/train_sac.py --config-name=sac
 
-## ⌨️ 控制说明
+# 自定义训练参数
+python src/training/train_ppo.py \
+  training.total_timesteps=1000000 \
+  ppo.learning_rate=1e-4 \
+  env.n_envs=8 \
+  wandb.enabled=true
 
-| 按键 | 功能 |
-|------|------|
-| `W` | 向上移动智能体 |
-| `S` | 向下移动智能体 |
-| `A` | 向左移动智能体 |
-| `D` | 向右移动智能体 |
-| `空格` | 切换用户控制/策略控制模式 |
-| `R` | 重置当前环境 |
-| `Q` | 退出游戏 |
+# 快速训练测试
+python src/training/train_ppo.py \
+  training.total_timesteps=50000 \
+  training.eval_freq=5000 \
+  wandb.enabled=false
 
-## 📁 项目结构
-
-```
-.
-├── pusht_human.py              # 主程序文件
-├── replay_trajectories.py      # 轨迹回放脚本
-├── utils.py                    # 工具函数模块
-├── RL/                         # 强化学习训练模块
-│   ├── train_ppo.py           # PPO训练脚本
-│   └── train_sac.py           # SAC训练脚本
-├── configs/
-│   ├── pusht_human.yaml       # 主程序配置文件
-│   ├── pusht_human_mouse.yaml # 鼠标控制配置文件
-│   ├── replay.yaml            # 回放配置文件
-│   └── rl/                    # 强化学习配置目录
-│       ├── ppo.yaml          # PPO训练配置
-│       └── sac.yaml          # SAC训练配置
-├── data/
-│   └── pusht_trajectories/    # 轨迹数据保存目录
-├── models/                    # 训练模型保存目录
-│   ├── ppo/                  # PPO模型
-│   └── sac/                  # SAC模型
-├── logs/                      # 训练日志目录
-│   ├── ppo/                  # PPO日志
-│   └── sac/                  # SAC日志
-├── gym-pusht/                 # PushT环境源码
-└── README.md                  # 说明文档
+# 高性能训练（多环境并行）
+python src/training/train_ppo.py \
+  env.n_envs=16 \
+  ppo.n_steps=4096 \
+  ppo.batch_size=128 \
+  training.total_timesteps=2000000
 ```
 
-## ⚙️ 配置说明
+## 🎮 控制说明
 
-### 环境配置 (`env`)
-- `obs_type`: 观测类型，可选 `state`、`pixels`、`environment_state_agent_pos`、`pixels_agent_pos`
-- `max_episode_steps`: 每轮最大步数 (默认300)
-- `success_threshold`: 成功覆盖率阈值 (默认0.95)
+### 键盘控制
+- **WASD**: 控制智能体移动
+- **空格键**: 切换用户/AI控制模式
+- **R**: 重置环境
+- **Q**: 退出游戏
 
-### 控制配置 (`control`)
-- `fps`: 渲染帧率 (默认10)
-- `keyboard_move_speed`: 键盘移动速度 (默认10)
-- `user_control`: 初始是否用户控制 (默认true)
-- `keys`: 键盘映射配置
-
-### 数据配置 (`data`)
-- `num_episodes`: 游戏轮数 (默认5)
-- `save_dir`: 数据保存目录 (默认"data/pusht_trajectories")
-- `save_format`: 保存格式，可选 `pickle`、`json`、`npz` (默认pickle)
-- `dataset_name`: 数据集名称 (默认"pusht_human_demo")
-
-### 策略配置 (`policy`)
-- `type`: 策略类型，当前支持 `random` (默认random)
-- `random_seed`: 随机种子 (默认42)
-
-### 上传配置 (`upload`)
-- `hf_token`: Hugging Face token (从环境变量获取)
-- `repo_id`: 仓库ID (默认"pusht-human-demo")
-- `private`: 是否私有 (默认false)
-- `auto_upload`: 游戏结束后自动上传 (默认false)
-
-### 强化学习配置 (`RL`)
-
-#### PPO配置 (`configs/rl/ppo.yaml`)
-- **实验配置**:
-  - `experiment.name`: 实验名称
-  - `experiment.project`: WandB项目名称
-  - `experiment.tags`: 实验标签
-- **环境配置**:
-  - `env.obs_type`: 观测类型 (推荐`pixels_agent_pos`)
-  - `env.n_envs`: 并行环境数量 (默认4)
-- **PPO算法参数**:
-  - `ppo.learning_rate`: 学习率 (默认3e-4)
-  - `ppo.n_steps`: 每次更新收集步数 (默认2048)
-  - `ppo.batch_size`: 批次大小 (默认64)
-  - `ppo.gamma`: 折扣因子 (默认0.99)
-- **训练配置**:
-  - `training.total_timesteps`: 总训练步数 (默认200000)
-  - `training.eval_freq`: 评估频率 (默认10000)
-- **WandB配置**:
-  - `wandb.enabled`: 是否启用WandB (默认true)
-  - `wandb.mode`: 运行模式 (online/offline/disabled)
-
-#### SAC配置 (`configs/rl/sac.yaml`)
-- **SAC算法参数**:
-  - `sac.learning_rate`: 学习率 (默认3e-4)
-  - `sac.buffer_size`: 经验回放缓冲区大小 (默认100000)
-  - `sac.learning_starts`: 开始学习的步数 (默认10000)
-  - `sac.ent_coef`: 熵系数 (默认auto)
-  - `sac.tau`: 软更新参数 (默认0.005)
+### 鼠标控制
+- **鼠标移动**: 设置智能体目标位置
+- **左键拖拽** (可选): 需要按住左键才移动
+- **空格键**: 切换控制模式
+- **Q**: 退出游戏
 
 ## 📊 数据格式
 
@@ -260,183 +269,219 @@ python replay_trajectories.py --data_path=data/pusht_trajectories/trajectories_5
 ```python
 @dataclass
 class TrajectoryStep:
-    observation: Any          # 观测数据
-    action: np.ndarray       # 动作向量 [x, y]
-    reward: float           # 奖励值
-    terminated: bool        # 是否终止
-    truncated: bool         # 是否截断
-    info: Dict[str, Any]    # 额外信息
+    observation: Any          # 环境观测
+    action: np.ndarray       # 执行的动作
+    reward: float            # 获得的奖励
+    terminated: bool         # 是否正常结束
+    truncated: bool          # 是否超时结束
+    info: Dict[str, Any]     # 环境信息
+    is_human_action: bool    # 是否为人类动作
 
-@dataclass 
+@dataclass
 class Episode:
-    steps: List[TrajectoryStep]  # 所有步骤
-    episode_id: int             # 轮次ID
+    steps: List[TrajectoryStep]  # 轨迹步骤列表
+    episode_id: int             # 轨迹ID
     total_reward: float         # 总奖励
-    success: bool              # 是否成功
-    length: int                # 步数
-    initial_state: Dict[str, Any]  # 初始状态信息（用于回放）
-    # 包含: agent_pos, block_pos, block_angle, goal_pose
+    success: bool               # 是否成功
+    length: int                 # 轨迹长度
+    initial_state: Dict         # 初始状态信息
 ```
 
-### 保存格式
+### 支持的保存格式
 
-- **Pickle**: 完整的Python对象，包含所有数据类型
-- **JSON**: 文本格式，便于查看和处理
-- **NPZ**: NumPy压缩格式，适合大规模数据分析
+- **HDF5** (.h5): 推荐格式，高效压缩，纯数据，无类依赖
+- **JSON** (.json): 人类可读，跨平台兼容，纯数据格式  
+- **CSV** (.csv): 最通用格式，适合数据分析，无类依赖
+- **NPZ** (.npz): NumPy压缩格式，适合数值数据，纯数据
+- **Pickle** (.pkl): 不推荐，包含类引用，有依赖问题
 
-## 🤗 Hugging Face集成
+**重要提示**: 新的数据格式（HDF5/JSON/CSV/NPZ）都是纯数据格式，不包含对Python类的引用，便于长期存储和跨环境使用。详见 [数据格式指南](docs/DATA_FORMATS.md)。
 
-### 设置Token
+## 🔧 配置系统
+
+HIRL使用Hydra进行配置管理，支持命令行参数覆盖和配置文件组合。
+
+### 可用配置文件
+
+| 配置文件 | 用途 | 主要特点 |
+|---------|------|----------|
+| `pusht_human.yaml` | 默认键盘控制 | WASD控制，1轮游戏，测试用 |
+| `pusht_human_mouse.yaml` | 鼠标控制 | 鼠标悬停控制，2轮游戏 |
+| `replay.yaml` | 轨迹回放 | 用于replay.py的回放配置 |
+| `rl/ppo.yaml` | PPO训练 | 强化学习PPO算法配置 |
+| `rl/sac.yaml` | SAC训练 | 强化学习SAC算法配置 |
+
+### 配置覆盖语法
 
 ```bash
-# 方法1: 环境变量
-export HF_TOKEN=your_huggingface_token
+# 基本语法
+python main.py key=value
 
-# 方法2: 配置文件
-python pusht_human.py upload.hf_token=your_huggingface_token
+# 嵌套配置
+python main.py parent.child=value
+
+# 多个参数
+python main.py key1=value1 key2=value2
+
+# 指定配置文件
+python main.py --config-name=config_name
+
+# 配置文件 + 参数覆盖
+python main.py --config-name=config_name key=value
 ```
 
-### 数据集格式
+### 主要配置类别
 
-上传到Hugging Face的数据集包含以下字段：
-
-- `episode_id`: 轮次编号
-- `step_id`: 步骤编号  
-- `observation`: 观测数据
-- `action`: 动作数据
-- `reward`: 奖励值
-- `terminated`: 终止标志
-- `truncated`: 截断标志
-- `episode_success`: 轮次成功标志
-- `episode_length`: 轮次长度
-- `episode_total_reward`: 轮次总奖励
-
-## 🎯 使用场景
-
-### 1. 强化学习研究
-- 收集人类专家演示数据
-- 进行模仿学习(Imitation Learning)研究
-- 训练强化学习智能体(PPO/SAC)
-- 对比人类和AI策略的行为差异
-
-### 2. 算法基准测试
-- 在PushT环境上评估不同RL算法性能
-- 对比像素观测和状态观测的效果
-- 研究多模态观测(像素+位置)的优势
-
-### 3. 数据集构建
-- 创建高质量的人类演示数据集
-- 为行为克隆(Behavioral Cloning)提供训练数据
-- 构建基准测试数据集
-
-### 4. 教学演示
-- 直观展示强化学习环境
-- 让学生体验智能体决策过程
-- 对比不同策略的效果
-- 可视化训练过程和性能曲线
-
-## 📈 性能优化
-
-### 强化学习训练优化
-1. **观测类型选择**: 
-   - `pixels_agent_pos`: 最佳性能，结合视觉和位置信息
-   - `pixels`: 纯视觉学习，更具挑战性
-   - `state`: 最快训练速度
-2. **并行环境**: PPO使用多个并行环境加速数据收集
-3. **超参数调优**: 
-   - 学习率: 3e-4是良好的起点
-   - PPO n_steps: 根据任务长度调整
-   - SAC buffer_size: 更大的缓冲区通常效果更好
-4. **WandB监控**: 实时监控训练进度和超参数效果
-
-### 提高数据质量
-1. **调整移动速度**: 根据需要调整`keyboard_move_speed`
-2. **适当帧率**: 平衡流畅度和控制精度
-3. **多轮游戏**: 收集足够的数据样本
-
-## 🐛 常见问题
-
-### Q: 强化学习训练显存不足？
-A: 降低并行环境数量 (`env.n_envs`)，或使用较小的网络架构。
-
-### Q: WandB无法连接？
-A: 检查网络连接，或使用 `wandb.mode=offline` 进行离线训练。
-
-### Q: 训练收敛慢？
-A: 尝试调整学习率，增加网络容量，或使用预训练模型。
-
-### Q: SAC训练不稳定？
-A: 检查熵系数设置，确保经验回放缓冲区足够大。
-
-### Q: 键盘控制不响应？
-A: 确保pygame窗口处于焦点状态，点击窗口后再操作。
-
-### Q: 数据上传失败？
-A: 检查Hugging Face token是否正确设置，网络连接是否正常。
-
-### Q: 游戏卡顿？
-A: 降低帧率设置或使用更轻量的观测类型。
-
-### Q: 找不到保存的数据？
-A: 检查`data.save_dir`配置，确保目录存在且有写权限。
-
-## 🔧 扩展开发
-
-### 添加新的RL算法
-
-在`RL/`目录下创建新的训练脚本：
-
-```python
-# RL/train_new_algorithm.py
-from stable_baselines3 import NewAlgorithm
-
-def setup_model(cfg, env):
-    model = NewAlgorithm(
-        policy=cfg.algorithm.policy,
-        env=env,
-        # 其他算法特定参数
-    )
-    return model
+#### 环境配置 (`env`)
+```yaml
+env:
+  obs_type: "pixels_agent_pos"    # 观测类型
+  max_episode_steps: 300          # 最大步数
+  success_threshold: 0.95         # 成功阈值
 ```
 
-### 自定义特征提取器
-
-```python
-# 在训练脚本中添加自定义特征提取器
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-
-class CustomExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space, features_dim=256):
-        super().__init__(observation_space, features_dim)
-        # 定义网络架构
-        
-    def forward(self, observations):
-        # 实现前向传播
-        return features
+#### 控制配置 (`control`)
+```yaml
+control:
+  input_mode: "keyboard"          # 输入模式: keyboard/mouse
+  user_control: true              # 初始控制模式
+  fps: 10                        # 渲染帧率
+  keyboard_move_speed: 10         # 键盘移动速度
 ```
 
-### 添加新策略
-
-在`utils.py`中继承基础策略类：
-
-```python
-class YourPolicy:
-    def __init__(self, action_space):
-        self.action_space = action_space
-    
-    def get_action(self, observation):
-        # 实现你的策略逻辑
-        return action
+#### 数据配置 (`data`)
+```yaml
+data:
+  num_episodes: 5                 # 游戏轮数
+  save_dir: "data/pusht_trajectories"
+  save_format: "pickle"           # 保存格式
+  dataset_name: "pusht_human_demo"
 ```
+
+#### 上传配置 (`upload`)
+```yaml
+upload:
+  hf_token: null                  # Hugging Face token
+  repo_id: "pusht-human-demo"     # 仓库ID
+  auto_upload: false              # 自动上传
+  private: false                  # 私有仓库
+```
+
+## 🤖 强化学习训练
+
+### PPO训练
+
+```bash
+# 基础训练
+python src/training/train_ppo.py
+
+# 自定义参数
+python src/training/train_ppo.py \
+  training.total_timesteps=1000000 \
+  ppo.learning_rate=3e-4 \
+  env.n_envs=8 \
+  wandb.enabled=true
+```
+
+### SAC训练
+
+```bash
+# 基础训练
+python src/training/train_sac.py
+
+# 自定义参数
+python src/training/train_sac.py \
+  training.total_timesteps=1000000 \
+  sac.learning_rate=3e-4 \
+  sac.buffer_size=200000
+```
+
+### 训练配置
+
+主要训练参数：
+- `training.total_timesteps`: 总训练步数
+- `training.eval_freq`: 评估频率
+- `env.n_envs`: 并行环境数量
+- `wandb.enabled`: 是否启用WandB日志
+
+## 📈 数据分析
+
+### 内置分析工具
+
+```bash
+# 查看analysis目录下的分析脚本
+ls analysis/
+
+# 运行数据分析
+python analysis/analyze_human_vs_ai_actions.py
+```
+
+### 可视化分析
+
+平台提供多种可视化分析功能：
+- 轨迹统计分析
+- 人类vs AI动作对比
+- 成功率趋势分析
+- 像素观测可视化
+
+## 🔗 扩展开发
+
+### 添加新的控制器
+
+1. 在 `src/controllers/` 下创建新的控制器类
+2. 继承基础控制器接口
+3. 在主游戏逻辑中注册新控制器
+
+### 添加新的环境
+
+1. 在 `src/core/environment.py` 中扩展环境管理器
+2. 添加环境特定的配置选项
+3. 更新数据类型以支持新的观测格式
+
+### 添加新的训练算法
+
+1. 在 `src/training/` 下创建新的训练脚本
+2. 使用统一的配置系统
+3. 集成WandB日志记录
+
+## 🤝 贡献指南
+
+我们欢迎社区贡献！请遵循以下步骤：
+
+1. Fork本仓库
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add amazing feature'`)
+4. 推送分支 (`git push origin feature/amazing-feature`)
+5. 开启Pull Request
+
+### 开发规范
+
+- 遵循PEP 8代码风格
+- 添加完整的文档字符串
+- 为新功能编写测试
+- 更新相关文档
 
 ## 📄 许可证
 
-本项目基于gym-pusht环境构建，遵循相应的开源许可证。
+本项目采用MIT许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 🤝 贡献
+## 🙏 致谢
 
-欢迎提交Issue和Pull Request来改进本项目！
+- [PushT环境](https://github.com/columbia-ai-robotics/diffusion_policy) 提供了优秀的机器人操作基准
+- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3) 提供了强化学习算法实现
+- [Hydra](https://hydra.cc/) 提供了灵活的配置管理系统
+- [WandB](https://wandb.ai/) 提供了实验跟踪和可视化功能
+
+## 📞 联系我们
+
+如有问题或建议，请通过以下方式联系：
+
+- 开启GitHub Issue
+- 发送邮件至 hirl@example.com
+- 加入我们的讨论群
 
 ---
 
-**注意**: 使用前请确保已正确安装gym-pusht环境，详见项目根目录下的安装说明。 
+<div align="center">
+Made with ❤️ by HIRL Team
+</div> 

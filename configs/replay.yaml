@@ -1,8 +1,8 @@
 # PushT轨迹回放配置
 # 用于replay_trajectories.py脚本
 
-# 数据文件路径
-data_path: "data/pusht_trajectories/pusht_human_demo.pickle"
+# 数据文件路径 (支持格式: .h5/.json/.csv/.npz/.pkl)
+data_path: "data/pusht_trajectories/pusht_human_demo.h5"
 
 # 回放模式
 auto_play: true           # 自动播放或手动逐步播放
